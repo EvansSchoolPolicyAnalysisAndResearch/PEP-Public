@@ -1,5 +1,39 @@
-root_dir <- ""
-#Changed all these to CSV files and changed false to null
+suppressWarnings(
+  suppressMessages({
+    library(shiny)
+    library(shinyBS)
+    library(tidyr)
+    library(shinythemes)
+    library(tools)
+    library(ggplot2)
+    library(dplyr)
+    #library(cowplot) #Old dependencies not currently in use; simplifying this list is on the to do list.
+    library(stringr)
+    library(DT)
+    library(glue)
+    library(rlang)
+    library(shinyWidgets)
+    library(sf)
+    #library(gridExtra)
+    library(ggdist)
+    #library(openxlsx)
+    library(purrr)
+    #library(rintrojs)
+    library(corrplot)
+    library(plotly)
+    library(bslib)
+    library(thematic)
+    #library(ragg) #for raster output
+    library(viridis)
+    library(heatmaply)
+    library(shinyjs)
+    library(reshape2)
+    library(ggtext)
+    #library(leaflet)
+    library(terra)
+    library(tidyterra)
+    library(flextable)
+  }))
 
 #instrument_list <- tryCatch(read.csv("Update/instrument_list.csv"),
 #error=function(e){return(NULL)})
@@ -46,9 +80,17 @@ if(!is.null(adm_levels)){
 }
 
 if(is.list(indicator_list)){
-  colnm_indic <- c("shortName", "label","axis", "units", "caption", "category") #Again, only what we minimally need to operate. Note we're moving flags to a new sheet
+  colnm_indic <- c("shortName", "category", "label","axis", "units") #Again, only what we minimally need to operate. Note we're moving flags to a new sheet
+  colnm_opt <- c("numerator", "denominator", "weight", "caption", "w_lower","w_upper") #Easier to tack these back on if they've been removed rather than continually check for them.
   if(any(!(colnm_indic %in% names(indicator_list)))){
     indicator_list <- NULL
+    #To do: error handling
+  } else if(any(!colnm_opt %in% names(indicator_list))){
+    for(colnm in colnm_opt){
+      if(!with(indicator_list, exists(colnm))) {
+        indicator_list[[colnm]] <- NA
+      }
+    }
   }
 }
 
@@ -95,26 +137,29 @@ if(exists("file_inventory") & !is.null(indicator_list)){
 }
 
 
-
+#Fix logic here.
 if(is.list(pathway_link)){
   colnm_link <- c("pathwayID", "goalName","shortName")
-  if(any(!(colnm_link %in% names(pathway_link)))){
-    pathway_link <- NULL
-  } else {
+  if(all(colnm_link %in% names(pathway_link))){
     pathway_link <- pathway_link |> distinct() #Bad input protection
     goalNames <- str_to_title(unique(pathway_link$goalName))
     indicatorCategories <- pathway_link |> select(goalName, shortName) |> distinct()
+  } else {
+    goalNames <- NULL
+    indicatorCategories <- NULL
   }
 } else {
   goalNames <- NULL
+  indicatorCategories <- NULL
 }
 
 if(is.list(groups_list)){
   colnm_grps <- c("varName","label","shortName","Levels","Labels","level") #need to fix names here
   if(any(!(colnm_grps %in% names(groups_list)))){
-    groups_list <- F
+    groups_list <- NULL
   }
 }
+
 if(is.list(policy_path)){
   colnm_path <- c("pathwayID", "goalName") #Minimum requirement for this to function
   if(any(!(colnm_path %in% names(policy_path)))){
@@ -229,7 +274,18 @@ globals <- list(
   polic_Names=polic_Names,
   polic_activ=polic_activ,
   year_list=year_list
-) # to do
+) 
+
+#Eventually this will come in on the configs, hard coding for now. 
+wins_opts <- list(
+  lbound=1,
+  ubound=99,
+  components=c("num","denom","final"),
+  method="Tails", 
+  weighted=T
+)
+
+
 
 #evidence: polic_Names, polic_activ, indicatorCategories, indicator_list, indic_inventory, pathway_link, adm_levels, year_list, shps
 #comps:    groups_list, pathway_link, indicator_list, indic_inventory, polic_Names, polic_activ, adm_levels, territory_names

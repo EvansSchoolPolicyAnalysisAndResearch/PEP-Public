@@ -1,3 +1,41 @@
+#============
+#Functions
+#============
+
+#Leaving this here because it's only used in this module.
+flexTableOut <- function(data=all_data(), adm_level=admMergeVar(), aggs_list=NULL, measurevars, lab, groupslab) {
+  corrTab <- data |> 
+    ungroup() |> 
+    select(any_of(c(adm_level, aggs_list, measurevars))) |> 
+    mutate_if(is.character, ~case_match(., "" ~ NA, .default=.)) |> 
+    mutate_at(measurevars, ~signif(., 4)) |>
+    na.omit()
+  
+  if(nrow(corrTab) <=60) { #arbitrary, to fix.
+    corrTabFlx <- corrTab
+    if(!is.null(aggs_list)) { 
+      names(corrTabFlx) <- c(str_to_title(adm_level), groupslab, paste0(measurelabel, " (Obs unit Avg)")) #This won't work with multiple disagg vars; fix later.
+      corrTabFlx <- flextable(corrTabFlx)
+      corrTabFlx <- merge_v(corrTabFlx, j=str_to_title(adm_level)) |>
+        autofit() |>
+        htmltools_value() 
+    } else { 
+      names(corrTabFlx) <- c(str_to_title(adm_level), paste0(lab, " (Obs Unit Avg)")) #This won't work with multiple disagg vars; fix later.
+      corrTabFlx <- flextable(corrTabFlx) |>
+        autofit() |>
+        htmltools_value()
+    }
+  } else {
+    corrTabFlx <- HTML("Tables are not displayed at this level because they would be too long.")
+  }
+  return(list(corrTab,corrTabFlx)) #Need corrTab to download
+}
+
+
+
+#============
+#UI
+#============
 comparisonsUI <- function(id, goalNames, year_list, adm_levels) {
   shinyjs::useShinyjs()
   adm_levels <- na.omit(adm_levels)
@@ -59,34 +97,9 @@ HTML('</div>')
   }
 }
 
-flexTableOut <- function(data=all_data(), adm_level=admMergeVar(), aggs_list=NULL, measurevars, lab, groupslab) {
-  corrTab <- data |> 
-    ungroup() |> 
-    select(any_of(c(adm_level, aggs_list, measurevars))) |> 
-    mutate_if(is.character, ~case_match(., "" ~ NA, .default=.)) |> 
-    mutate_at(measurevars, ~signif(., 4)) |>
-    na.omit()
-  
-  if(nrow(corrTab) <=60) { #arbitrary, to fix.
-  corrTabFlx <- corrTab
-  if(!is.null(aggs_list)) { 
-  names(corrTabFlx) <- c(str_to_title(adm_level), groupslab, paste0(measurelabel, " (Obs unit Avg)")) #This won't work with multiple disagg vars; fix later.
-  corrTabFlx <- flextable(corrTabFlx)
-  corrTabFlx <- merge_v(corrTabFlx, j=str_to_title(adm_level)) |>
-    autofit() |>
-    htmltools_value() 
-  } else { 
-    names(corrTabFlx) <- c(str_to_title(adm_level), paste0(lab, " (Obs Unit Avg)")) #This won't work with multiple disagg vars; fix later.
-    corrTabFlx <- flextable(corrTabFlx) |>
-    autofit() |>
-    htmltools_value()
-  }
-  } else {
-    corrTabFlx <- HTML("Tables are not displayed at this level because they would be too long.")
-  }
-  return(list(corrTab,corrTabFlx)) #Need corrTab to download
-}
-
+#============
+#Server
+#============
 comparisonsServer <- function(id, globals, territory_names) {
   moduleServer(id, function(input, output, session) {
 
@@ -161,7 +174,7 @@ comparisonsServer <- function(id, globals, territory_names) {
   })
     
   
-  #This needs to get fixed.
+  #To do: integrate with new data workflow. 
   observeEvent(input$makeHeatMap, {
     if(!is.null(heatmap_indics())){
       data_files <- paste0(heatmap_indics()$file, "_", heatmap_indics()$year) |> unique()
@@ -372,6 +385,36 @@ comparisonsServer <- function(id, globals, territory_names) {
     makeHist(all_data(), input$yvarSelect, bins(), aggs_list(), labs()$yAxis, labs()$ylab, labs()$aggs_lab)
   }) |> bindEvent(input$submitBtn)
           
+  
+  output$downloadRawShort <- downloadHandler(
+    filename="raw_data_export.csv",
+    content=function(file){
+      aggs_list = input$groupsChk
+      if(aggs_list==""){
+        aggs_list <- NULL
+      }
+      #The indicator_list part of this call is not strictly necessary but I'm keeping it in for clarity (for now)
+      rawData <- getData(indic_inventory, xvars=input$xvarSelect, yvars=input$yvarSelect, indicator_list=indicator_list, aggs_list=aggs_list(), adm_levels=adm_levels[adm_levels$admLevel==admMergeVar(),], drop_0s = input$yChk)
+      write.csv(rawData[[admMergeVar()]], file, row.names=F)
     }
+  )
+  
+  output$downloadRawLong <- downloadHandler(
+    filename="raw_data_export.csv",
+    content=function(file){
+      aggs_list = input$groupsChk
+      if(aggs_list==""){
+        aggs_list <- NULL
+      }
+      rawData <- getData(indic_inventory, xvars=indics(), indicator_list=indicator_list, aggs_list=aggs_list(), adm_levels=adm_levels[adm_levels$admLevel==admMergeVar(),], drop_0s = input$yChk) #Drop 0s won't do anything because we treat it all as xvars
+      write.csv(rawData[[admMergeVar()]], file, row.names=F)
+    }
+  )
+  
+  
+  
+  
+    }
+    
   })
 }

@@ -9,16 +9,16 @@ getIndics <- function(pathway_link, indicator_list, indic_inventory, policy, pat
     indics_out <- pathway_link %>% filter(goalName==policy) %>% merge(., indicator_list, by="shortName")
   }
   if(cats==T){
-    indics_out <- merge(indics_out, indic_inventory %>% filter(year %in% obsyear), by="shortName") %>% select(shortName, category, labelName) %>% distinct()  %>% arrange(category)
+    indics_out <- merge(indics_out, indic_inventory %>% filter(year %in% obsyear), by="shortName") %>% select(shortName, category, label) %>% distinct()  %>% arrange(category)
     indics <- lapply(unique(indics_out$category), FUN=function(x){
       sub_indics <- indics_out %>% filter(category==x)
       temp_indics <- as.list(sub_indics$shortName)
-      names(temp_indics) <- sub_indics$labelName
+      names(temp_indics) <- sub_indics$label
       return(temp_indics)
     })
     names(indics) <- unique(indics_out$category)
   } else {
-    indics_out <- merge(indics_out, indic_inventory %>% filter(year %in% obsyear), by="shortName") %>% select(shortName, labelName) %>% distinct()
+    indics_out <- merge(indics_out, indic_inventory %>% filter(year %in% obsyear), by="shortName") %>% select(shortName, label) %>% distinct()
     indics <- as.list(indics_out$shortName)
     names(indics) <- indics_out$labelName 
   }
@@ -37,7 +37,7 @@ getRawData <- function(files, indicators, aggs_list="year", adm_levels) {
     #to do: add admin level aggregation here. 
     filenames <- files$file[files$year==year] |> unique()
     for(filename in filenames) {
-      infile <-  tryCatch(read.csv(sprintf("Data/%s_%s.csv", filename, year)) |> select(any_of(na.omit(c(adm_levels$shortName, indicators$shortName)))), #Idk if this is the best way to do this.
+      infile <-  tryCatch(read.csv(sprintf("Data/%s_%s.csv", filename, year)) |> select(any_of(na.omit(c(adm_levels$shortName, indicators$shortName, indicators$denominator, indicators$numerator, indicators$weight)))), #Idk if this is the best way to do this.
                           error=function(e){
                             merge_errors <- merge_errors |> add_row(file=filename, error="Unable to load file or variables were missing")
                           })
@@ -72,12 +72,25 @@ getRawData <- function(files, indicators, aggs_list="year", adm_levels) {
                             error=function(e){
                               return(NULL)
                             })
-        #Better way to do this, maybs?
+        #Better way to do this, maybe?
         if(!is.null(weights)){
+          outflag <- F
           mergeNames <- names(outfile)[which(names(outfile) %in% names(weights))] #Slightly more flexible
           if(length(mergeNames)!=0) {
-            outfile <- merge(outfile, weights, by=mergeNames)
+            outfile_temp <- tryCatch(inner_join(outfile, weights, by=mergeNames, relationship="one-to-one"),
+                                warning=function(w) {
+                                  merge_errors <- merge_errors |> add_row(file="weights", error="File relationship wasn't one-to-one")
+                                  outflag <- T
+                                  return(NULL)
+                                },
+                                error=function(e){
+                                  merge_errors <- merge_errors |> add_row(file="weights", error="Other error in file join (ID column data types may be mismatched)")
+                                  outflag <- T
+                                  return(NULL)
+                                })
+            if(!outflag) outfile <- outfile_temp else outfile$weight <- 1
           } else {
+            merge_errors <- merge_errors |> add_row(file="weights", error="Unable to execute join")
             #showNotification("Error in merging weights file: ID column not found. Unweighted averages will be shown.", type="error")
             outfile$weight <- 1
           }
@@ -90,7 +103,7 @@ getRawData <- function(files, indicators, aggs_list="year", adm_levels) {
         groups <- tryCatch(read.csv(sprintf("Data/groups_%s.csv", year)),
                            warning=function(w) {
                              aggs_list <- "year"
-                             merge_errors |> add_row(file=sprintf("groups_%s", year), error="Grouping file now found")
+                             merge_errors |> add_row(file=sprintf("groups_%s", year), error="Grouping file not found")
                              return(NULL)
                            },
                            error=function(e){
@@ -112,19 +125,18 @@ getRawData <- function(files, indicators, aggs_list="year", adm_levels) {
     }
   }) 
   )
-  #, error=function(e) return(NULL))
-  if(is.list(df)){
-    return(df)
-  } else {
-    return(merge_errors)
-  }
+  return(list(df=df,
+              merge_errors=merge_errors))
 }
 
-
+get_Accessories <- function(vars, indicator_list){ #To do: Consistent naming
+  vardf <- data.frame(shortName=vars)
+  indicators_filt <- merge(indicator_list, vardf)
+  return(na.omit(c(vars, indicators_filt$numerator, indicators_filt$denominator, indicators_filt$weight)))
+}
 
 #Just pass the full indicator list without doing any preprocessing, I think.
-#getFiltData <- function(files, xvars, yvars=NULL, denoms=NULL, aggs_list="", filter="",  adm_level="UNITID", source_call="none", drop_0s=F, winsorize=F){
-getData <- function(files, xvars, yvars=NULL, indicators,  aggs_list="", filter=NULL, adm_levels, source_call="none", drop_0s=F, winsorize=F) {
+getData <- function(files, xvars, yvars=NULL, indicator_list=indicator_list,  aggs_list="", filtervar=NULL, adm_levels, drop_0s=F, winsorize=F) { #wins_opts to implement
   #helper function
   summarize_data <- function(adm_vars, data, aggs_list) {
      #Kinda messy, but this function will effectively do nothing if the adm_vars contain the unit of analysis.
@@ -132,8 +144,8 @@ getData <- function(files, xvars, yvars=NULL, indicators,  aggs_list="", filter=
       data |> group_by(!!!syms(na.omit(c(adm_vars, aggs_list, "shortName")))) |>   #Na omit is awkward but that's how we get the national stats
         summarize(Mean=weighted.mean(value, w=weight, na.rm=T), Total=sum(value*weight, na.rm=T), Obs=sum(!is.na(value)))
   }
-  
-  mindicators <- merge(c(xvars,yvars), indicators)
+  mindicator_list <- c(xvars, yvars)
+  mindicators <- merge(c(xvars,yvars), indicator_list)
   #varlist <- c(mindicators$shortName, mindicators$Numerator, mindicators$Denominator) |> na.omit() |> unique()
   aggs_list <- c(aggs_list[nzchar(aggs_list)], "year") 
   years <- files$year %>% unique()
@@ -141,14 +153,20 @@ getData <- function(files, xvars, yvars=NULL, indicators,  aggs_list="", filter=
   exit <- F
   
   #add recursive admin loop here.
-  df <- getRawData(files, mindicators, aggs_list=aggs_list, adm_levels=adm_levels) #fix mindicators.
-  #This doesn't work.
-  #if(req(filter) %in% names(df)){
-  #  df <- df %>% filter(!!sym(filter)==1) #Keep only yes for everything. 
-  #}
+  raw_data <- getRawData(files, mindicators, aggs_list=aggs_list, adm_levels=adm_levels) #fix mindicators.
+  
+  if(is.null(raw_data$df)){
+    #To do: error handling  
+  } else {
+    df <- raw_data$df
+  
+  if((filtervar %||% "") %in% names(df)){
+    df <- df %>% filter(!!sym(filtervar)==1) #Keep only yes for everything. 
+  }
   #Fix denominator issues. This is super messy.
   varslist_short <- names(df)[which(names(df) %in% unlist(c(xvars,yvars)))]
   if(length(varslist_short)==0){
+    #To do: Error handling
     #showNotification(paste("No variables for the selected policy priority were found in", survey))
   } else {
     for(currVar in varslist_short) {
@@ -164,23 +182,22 @@ getData <- function(files, xvars, yvars=NULL, indicators,  aggs_list="", filter=
       }
     }
     if(length(varslist_short)==0){ 
-      if(source_call!="trendmaps"){
         showNotification(paste("Error: Data file", file, "is empty or only contains variables not listed in indicators_list"), type="error")
-      }
     } else {
-      ####Winsorization would go here, to implement. 
-      
+      #To do: prevent multiple winsorization on numerator/denominator variables
+      #Winsorization here. 
       if(drop_0s==T){
         df <- df %>% filter(!!sym(yvars)!=0)
       }
-      
-      if(exists("df", mode="list")){
-        if(!nrow(df)==0){  
+        if(nrow(df)>0){  
           #Doing this down here to avoid messing up household data export, although hhdata might or might not have denoms at this point. 
           for(currVar in varslist_short){
-            denom <- indicators$Denominator[indicators$shortName==currVar]
+            denom <- indicators$denominator[indicators$shortName==currVar]
+            wt <- indicators$weight[indicators$shortName==currVar]
             df[[paste0("weight.", currVar)]] <- if(any(names(df) %in% denom)) {
               df$weight*df[[denom]] 
+            } else if(any(names(df) %in% wt)) {
+              df$weight*df[[wt]]
             } else {
               df$weight
             }
@@ -188,7 +205,7 @@ getData <- function(files, xvars, yvars=NULL, indicators,  aggs_list="", filter=
           }
           df <- df |> mutate(across(starts_with("weight."), ~replace_na(.x,  0)))
           #If denoms are also target variables, they'll be safe behind "value" and "weight"
-          df <- df %>% select(-any_of(na.omit(c(mindicators$Denominator, "weight")))) %>% 
+          df <- df %>% select(-any_of(na.omit(c(mindicators$denominator, "weight")))) %>% 
             pivot_longer(cols=starts_with(c("value", "weight")), names_to=c(".value","shortName"), names_sep="[.]")
           #kludge here?
           #Replace any names in the dataset with their generic admin identifiers. 

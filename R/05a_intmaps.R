@@ -13,8 +13,6 @@ mapUI <- function(id, year_list, adm_levels, territory_names, indicators){
           column(6, uiOutput(NS(id, "indicatorsout"))),
           column(3, selectInput(NS(id, "outcome1"), "Measurement:", 
                                 choices = c("Mean", "Total", "Trend"), width = "100%")), #Some way to communicate value for point obs #May need to undo hard coding here.
-          #column(3, uiOutput(NS(id, "statistic_ui1"))),
-          #column(3, selectInput(NS(id, "transformation", "Transformation:)))
           conditionalPanel("input.outcome1!='Trend'",
           column(3, selectInput(NS(id, "year1"), "Year:", 
                                 choices = year_list, width = "100%"))
@@ -68,13 +66,13 @@ mapServer <- function(id, dfs, shps, adm_levels, indicator_list){
       indicators <- df() |> ungroup() |> select(shortName) |> distinct() |> inner_join(indicator_list)
       selectInput(ns("indicator"), "Select Variable:", choices={
         choicelist <- indicators$shortName 
-        names(choicelist) <- indicators$labelName
+        names(choicelist) <- indicators$label
         choicelist
       })
     })
     
     indicator_name <- reactive({
-      indicator_list$labelName[indicator_list$shortName == input$indicator][1] #Might be simplifiable. 
+      indicator_list$label[indicator_list$shortName == input$indicator][1] #Might be simplifiable. 
     })
     
     output$territorySelect <- renderUI({
@@ -98,41 +96,33 @@ mapServer <- function(id, dfs, shps, adm_levels, indicator_list){
       mapdf <- df() |> filter(shortName==input$indicator)
       #adm level filtering here
       
-      if(input$indicator!="Trend" | length(unique(df()$year))<2){
+      if(input$indicator!="Trend" & length(unique(df()$year))>1){
           #Need message to user if they request trend but only 1 year is present
         #Also need way to handle if df is grouped w/ a grouping variable (not a current problem because it isn't an option here, but it might be in the future)
-        if(!is.null(input$year1)) mapdf <- mapdf |> filter(year==input$year1)
-        return(mapdf)
-      } else {
-        mapdf <- mapdf |> select()
-      }
+        mapdf <- mapdf |> filter(year==input$year1)
+      } 
+      return(mapdf)
     })
-    
 
-    
-    #observe({
-    #  shinyjs::toggleState("resetButton", condition=adm_level()!="adm1")
-    #})
-    
-    
-    #observeEvent(input$territory1, {
-    #  if (input$territory1 != "US") {
-    #    selected_state1(input$territory1)
-    #  } else {
-    #    selected_state1(NULL)
-    #  }
-    #})
     # Render Map 1
     output$map1 <- renderPlotly({
       req(input$indicator)
-        indic <- input$indicator
+      indic <- input$indicator
       
-      #show_ccs <- if (!is.null(input$individual_ccs1)) input$individual_ccs1 else FALSE
       if(input$outcome1!="Trend") {
       shp <- shps[[adm_level()]] |> left_join(df() |> 
                                               filter(shortName==indic, year==input$year1) |> 
                                               select(matches(c(input$outcome1, adm_level())))) 
-      } #Else to do
+      } else {
+        minyear <- min(df()$year)
+        maxyear <- max(df()$year)
+        tempdf <- df() |> 
+          filter(shortName==indic, (year==minyear | year==maxyear)) |>
+          select(matches(c("Mean", adm_level(), "year"))) |> #Arbitrarily choose means for trend, needs to be made explicit.
+          pivot_wider(id_cols=all_of(adm_level()), names_from="year", values_from="Mean", names_glue=" {.value}{year}")
+        tempdf$Trend <- (tempdf[[paste0("Mean", maxyear)]] - tempdf[[paste0("Mean",minyear)]])/tempdf[[paste0("Mean",minyear)]]  #Eventually "Mean" will be substitutable.
+        shp <- shps[[adm_level()]] |> left_join(temp_df)  
+      }
      plot_obj <- create_intMap(ns("map1"), shp, adm_level(), adm_name(), input$outcome1)      
      trace_map1(attr(plot_obj, "trace_map"))
       plot_obj
@@ -169,17 +159,6 @@ mapServer <- function(id, dfs, shps, adm_levels, indicator_list){
 
 create_intMap <- function(source_name, plot_data, adm_level, adm_name, statistic){ #To fix show colleges.
   # Join data
-  #if(adm_level=="adm1") { 
-  #plot_data <- shp |>
-  #  left_join(df) |> #Should be automatic assuming the df was processed properly.
-  #    mutate(
-  #      original_value = .data[[col_name]],
-  #      value = coalesce(.data[[col_name]], 0),
-  #      display_value = case_when(
-  #        statistic == "Average per CC" & is.na(original_value) ~ "No data",
-  #        statistic == "Total" ~ format(round(value), big.mark = ",", trim = TRUE),
-  #        TRUE ~ format(round(value, 1), nsmall = 1, trim = TRUE)
-  #      ),
   plot_data$display_value <- plot_data[[statistic]]
   plot_data <- plot_data |> mutate(display_value=ifelse(
     is.na(display_value), "No data", format(signif(display_value, 4), big.mark=",", trim=T)
@@ -189,26 +168,7 @@ create_intMap <- function(source_name, plot_data, adm_level, adm_name, statistic
   plot_data <- dplyr::arrange(plot_data, !!sym(adm_level))  # Important: consistent ordering
   # Store the trace mapping as an attribute (for hover)
   trace_map <- setNames(plot_data[[adm_level]], 0:(nrow(plot_data)-1))
-  #} else {
-  #  plot_data <- shp %>% 
-  #    filter(st_iso == iso) %>%
-  #    left_join(df, by = c("st_iso", "co_name")) %>%
-  #    mutate(
-  #      value = coalesce(.data[[col_name]], 0),
-  #      display_value = case_when(
-  #        statistic == "Total" ~ format(round(value), big.mark = ",", trim = TRUE),
-  #        TRUE ~ format(round(value, 1), nsmall = 1, trim = TRUE)
-  #      ),
-  #      hover_text = sprintf("%s: %s", co_name, display_value),
-  #      adm_key = as.character(co_name)
-  #    ) %>%
-  #    arrange(co_name)
-  
-  # Store the trace mapping
-  #trace_map <- setNames(plot_data$co_name, 0:(nrow(plot_data)-1))
-  #}
-  
-  
+
   if(min(plot_data[[statistic]]) < 0) {
     map_colors <- c("brown4", "#f5f5f5", "#4b2e83")
   } else {

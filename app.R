@@ -5,44 +5,10 @@ options(dplyr.summarise.inform = FALSE,
 #options(shiny.useragg = TRUE)
 options(sass.cache=FALSE)
 #options(shiny.reactlog=TRUE)
-suppressWarnings(
-  suppressMessages({
-    library(shiny)
-    library(shinyBS)
-    library(tidyr)
-    library(shinythemes)
-    library(tools)
-    library(ggplot2)
-    library(dplyr)
-    #library(cowplot) #Old dependencies not currently in use; simplifying this list is on the to do list.
-    library(stringr)
-    library(DT)
-    library(glue)
-    library(rlang)
-    library(shinyWidgets)
-    library(sf)
-    #library(gridExtra)
-    library(ggdist)
-    #library(openxlsx)
-    library(purrr)
-    #library(rintrojs)
-    library(corrplot)
-    library(plotly)
-    library(bslib)
-    library(thematic)
-    #library(ragg) #for raster output
-    library(viridis)
-    library(heatmaply)
-    library(shinyjs)
-    library(reshape2)
-    library(ggtext)
-    #library(leaflet)
-    library(terra)
-    library(tidyterra)
-    library(flextable)
-  }))
 
-lapply(list.files("Scripts", full.names=T), FUN=source) #To do: make the name of this folder more deSCRIPTive
+#Moved library calls to startup because R is sourced first.
+
+lapply(list.files("Functions", full.names=T), FUN=source) #To do: make the name of this folder more deSCRIPTive
 
 
 
@@ -55,7 +21,8 @@ thematic_shiny(
 
 ui <- navbarPage(title="Policy Explorer Platform (PEP)", theme=bslib::bs_theme(version="5", preset='pulse',  #bg = "white", fg = "#3B528B", info="#474481", primary = "#440154FF",
                                                               base_font = bslib::font_google("Open Sans"),
-                                                              heading_font=bslib::font_google("Open Sans")),
+                                                              heading_font=bslib::font_google("Open Sans")), collapsible=T,
+                                                              windowTitle="Policy Explorer Platform",
                  header=
                    tags$style(HTML(
                      '

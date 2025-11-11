@@ -50,8 +50,8 @@ filterVarTable <- function(dt_out, pathway_link, pathwayTarget, indicator_list, 
   }
   
   dt_out <- dt_out |> filter(year==min(dt_out$year) | year==max(dt_out$year)) |>
-    pivot_wider(id_cols=all_of(c("shortName", "labelName","units")), names_from="year", values_from=stat, names_glue="{year} {.value}") |>
-    rename(Variable=labelName, Units=units)
+    pivot_wider(id_cols=all_of(c("shortName", "label","units")), names_from="year", values_from=stat, names_glue="{year} {.value}") |>
+    rename(Variable=label, Units=units)
   
   
   dt_out <- data.frame(dt_out)

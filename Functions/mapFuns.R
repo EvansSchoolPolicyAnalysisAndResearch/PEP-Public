@@ -1,4 +1,4 @@
-
+#These two functions are being phased out.
 biColorMap <- function(xShp, fillVal, plotTitle, units){
   plotOut <- ggplot(xShp, aes(fill = !!sym(fillVal)))+
     geom_sf() +
@@ -155,9 +155,6 @@ timeSeriesPlot <- function(outdata, yvars, statname){
     labs(x="",y=lab[[1]])
 }
 
-#this should be relocated.
-`%||%` <- function(a, b) {
-  if (is.null(a)) b else a
-}
+
 
 
