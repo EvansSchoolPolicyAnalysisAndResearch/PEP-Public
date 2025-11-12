@@ -119,11 +119,11 @@ mapServer <- function(id, dfs, shps, adm_levels, indicator_list){
         tempdf <- df() |> 
           filter(shortName==indic, (year==minyear | year==maxyear)) |>
           select(matches(c("Mean", adm_level(), "year"))) |> #Arbitrarily choose means for trend, needs to be made explicit.
-          pivot_wider(id_cols=all_of(adm_level()), names_from="year", values_from="Mean", names_glue=" {.value}{year}")
+          pivot_wider(id_cols=all_of(adm_level()), names_from="year", values_from="Mean", names_glue="{.value}{year}")
         tempdf$Trend <- (tempdf[[paste0("Mean", maxyear)]] - tempdf[[paste0("Mean",minyear)]])/tempdf[[paste0("Mean",minyear)]]  #Eventually "Mean" will be substitutable.
-        shp <- shps[[adm_level()]] |> left_join(temp_df)  
+        shp <- shps[[adm_level()]] |> left_join(tempdf)  
       }
-     plot_obj <- create_intMap(ns("map1"), shp, adm_level(), adm_name(), input$outcome1)      
+     plot_obj <- create_intMap(ns("map1"), shp, paste0("adm", adm_level()), adm_name(), input$outcome1) # To fix.      
      trace_map1(attr(plot_obj, "trace_map"))
       plot_obj
     })

@@ -112,9 +112,10 @@ similarly-named column corresponding to the data files (either
 adm_levels.csv). For example, a file containing US states would be
 called “adm1.shp”, containing a column called “adm1” that contains
 something (e.g. state abbreviation or ID code) that matches a similar
-column in the data. This is a complex step, and modifying shapefiles can
-be an irritating exercise for inexperienced users, and so we provide US
-state and county level maps for your convenience.</p>
+column in the data. Because modifying shapefiles can be a time-consuming
+exercise, we currently provide US state and county level maps for your
+convenience and are working on tools to make adding your own shapefiles
+easier.</p>
 </div>
 <div id="data-export" class="section level5">
 <h5>Data Export</h5>
@@ -391,14 +392,7 @@ omitted, the average chicken vaccination rate by household.</td>
 the weight in the weights file, what should it be weighted by? This can
 save you from having to set up a separate file if you’re working with
 population-level data (e.g. weighting a dataset of states by state
-population, assuming that’s already in your data). As with the
-“denominator” column, it’s important to use this information in way that
-ensures the estimates that you’re presenting align with what what you
-want to present. There are situations where, for example, you want to
-know what the typical individual experiences; other times, you want it
-to be the typical household. The unit of observation in your data and
-the desired unit of analysis will determine how this column should be
-used.</td>
+population, assuming that’s already in your data).</td>
 </tr>
 <tr class="odd">
 <td align="center">caption</td>
@@ -425,6 +419,51 @@ setting the value to 100.</td>
 </tbody>
 </table>
 </div>
+</div>
+<div id="wait-it-sounds-like-weights-and-denominator-are-the-same-thing." class="section level6">
+<h6>Wait, it sounds like “weights” and “denominator” are the same
+thing.</h6>
+<p>It depends on your winsorization preferences. At time of writing,
+winsorization is currently off by default unless one modifies the code.
+Once its is fully implemented in a forthcoming update, winsorization (if
+turned on) will be blanket-applied to your dataset based on the values
+of w_lower and w_upper or a global set of values if the
+variable-specific ones are unspecified, and in situations where the
+variable has a specified numerator and denominator, winsorization is
+(optionally) applied to those as well with the final averages being
+weighted by the denominator. The weight column allows you to protect
+certain variables from your global winsorization settings - for example,
+if you have a dataset with things like agricultural productivity and
+proportion of female household members, you might want to put things in
+like household plot area in the denominator column and the number of
+household members in the weight column, since it can make more sense to
+winsorize the former than the latter. If you supply both, the app will
+preferentially use the denominator column.</p>
+</div>
+<div id="great-but-none-of-that-applies-to-my-analysis" class="section level6">
+<h6>Great, but none of that applies to my analysis</h6>
+<p>Then no harm will come from removing the columns or leaving them
+blank - the goal of this setup is to create something that can be
+modified to suit a wide variety of analyses and allow teams to make
+sense of their particular datasets together. There are potential use
+cases where you could choose to remove the weight column or the
+numerator and denominator columns, or all three. (But leaving the
+numerator column in without also filling in the denominator column might
+result in some unusual estimates).</p>
+</div>
+<div id="a-final-note-on-reproducibility" class="section level6">
+<h6>A final note on reproducibility</h6>
+<p>If you’ve made it this far in the guide, and noticing that there are
+still six more tables to go is making you wonder about the advantages to
+using PEP over a simpler data visualization utility, this is one of
+them. In some policy analysis spaces, outlier trimming and
+standardization is often subject to decisionmaking that may be invisible
+in the product(s), resulting in preparations of the same raw data that
+differ, often substantially, across organizations. PEP is designed to
+help keep those decisions explicit and reproducible (and we are in the
+process of adding additional utilities and configuration options), so we
+encourage you to use raw data rather than making these decisions in
+advance.</p>
 </div>
 <div id="policy-pathways-pathway_table.csv" class="section level6">
 <h6>Policy Pathways (pathway_table.csv)</h6>
@@ -475,7 +514,10 @@ definitions above)</td>
 <tr class="even">
 <td align="center"><em><span style="color: darkgreen;">Your criteria
 (one or more columns)</span></em></td>
-<td>(⬆, ⬇, ⬍, or = ; or text)</td>
+<td>⬆, ⬇, ⬍, or = ; or text. For instance, efficiency (e.g. measured by
+final price or quantity exchanged), speed of implementation (slow,
+medium, fast), effectiveness or probablity of success, political/legal
+feasibility</td>
 </tr>
 </tbody>
 </table>

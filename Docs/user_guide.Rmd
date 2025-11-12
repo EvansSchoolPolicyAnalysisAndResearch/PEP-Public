@@ -193,7 +193,7 @@ This spreadsheet is used to construct the table on the "Policy Instruments by Go
 | ***`r colorize("Pathway", "darkgreen")`*** | a descriptive definition of the Policy Pathway; optional, but necessary to have the option to filter the variable list to the pathway |
 | ***`r colorize("Instrument", "darkgreen")`*** | The category (e.g. subsidy, information campaign, tariff, quota) of the implementation |
 | ***`r colorize("Policy Option", "darkgreen")`*** | A specific method for achieving the policy goal via the pathway (see definitions above) |
-| *`r colorize("Your criteria (one or more columns)", "darkgreen")`* | (⬆, ⬇, ⬍, or = ; or text) |
+| *`r colorize("Your criteria (one or more columns)", "darkgreen")`* |  ⬆, ⬇, ⬍, or = ; or text. For instance, efficiency (e.g. measured by final price or quantity exchanged), speed of implementation (slow, medium, fast), effectiveness or probablity of success, political/legal feasibility |
 :::
 
 You may add as many criteria as you wish, but beyond five (maybe six if you're skilled at economizing on column titles), the table might become too wide to fully fit in your window. Season to taste, but consider the effect of excessive information density on your users.

@@ -5,8 +5,6 @@ secsourcesUI <- function(id, ext_sources) { #only using ext_sources here to chec
   } else {
   tagList(
   HTML('<div style="font-size: 0.9em">'),
-  fluidRow(HTML("<p>This table shows additional sources of contextual information. Updates can be made by downloading the "),
-           downloadLink(NS(id, "secSourcesDL"), "associated spreadsheet."), HTML("</p>")),
   fluidRow(DTOutput(NS(id, 'secsources'))),
   HTML('</div>')
   #Interactive tables (under development)
@@ -66,14 +64,6 @@ secsourcesServer <- function(id, ext_data=NULL) {
       vals$ext_data[row, clmn] <- input$secsources_cell_edit$value
       shinyjs::enable(input$saveDT)
     })
-    
-    output$secSourcesDL <- downloadHandler(
-      filename="secondary_sources.csv",
-      content=function(file){
-        file.copy("Update/secondary_sources.csv")
-      },
-      contentType="text/csv"
-    )
     
   })
 }

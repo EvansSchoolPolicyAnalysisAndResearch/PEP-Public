@@ -1,4 +1,4 @@
-evidenceUI <- function(id, goalNames, adm_levels, indicators){ 
+evidenceUI <- function(id, goalNames, adm_levels, indicators, year_list){  #Most of the arguments are just to ensure the module doesn't fire without the required info.
   shinyjs::useShinyjs()
   ns <- shiny::NS(id)
   if(is.null(goalNames)){
@@ -7,7 +7,10 @@ evidenceUI <- function(id, goalNames, adm_levels, indicators){
     tagList(HTML("There is a problem with the adm_levels.csv spreadsheet. Contact your administrator for help."))
   } else if(is.null(indicators)) {
     tagList(HTML("This content cannot be displayed until some indicators have been selected using the indicators_list spreadsheet."))
+  } else if(is.null(year_list)) {
+    tagList(HTML("No data files were found - check to ensure that you're following the naming conventions laid out in the user guide."))
   } else {
+    
   tagList(
       tabPanel("Data",
       fluidRow(column(2, selectInput(NS(id, 'policiesBox'), "Select a policy goal", choices=c("None", goalNames))),
@@ -104,7 +107,7 @@ evidenceServer <- function(id, globals, shps) {
     
     module_data <- reactive({
       if(req(input$policiesBox)!="None"){
-      df <- getData(indic_inventory, xvars=pathway_link |> filter(goalName==input$policiesBox) |> select(shortName) |> distinct(), indicators=indicator_list, adm_levels=adm_levels)  #maybe a better way to specify these arguments #TODO: undo hard coding on UNITID - we need a specifications section.
+      df <- getData(indic_inventory, xvars=pathway_link |> filter(goalName==input$policiesBox) |> select(shortName) |> distinct(), indicator_list=indicator_list, adm_levels=adm_levels)  #maybe a better way to specify these arguments #TODO: undo hard coding on UNITID - we need a specifications section.
       }
       }) |> bindCache(input$policiesBox)
     

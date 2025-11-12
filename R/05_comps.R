@@ -31,6 +31,20 @@ flexTableOut <- function(data=all_data(), adm_level=admMergeVar(), aggs_list=NUL
   return(list(corrTab,corrTabFlx)) #Need corrTab to download
 }
 
+varcaptions <- function(varname, indicator_list=indicator_list) {
+  cap <- indicator_list$caption[indicator_list$shortName==varname]
+  if(!is.na(cap)){
+    HTML(sprintf('<table style="border: 3px #ddd; border-style: groove; padding: 9px;">
+                        <tr><td style="border: 3px #ddd; border-style: groove; padding: 9px;">%s</td></tr>
+                        <tr><td style="border: 3px #ddd; border-style: groove; padding: 9px;">%s</td></tr>
+                                               ',
+                 "Variable information:", #Placeholder 
+                 cap
+    ))
+  } else {
+    NULL
+  }
+}
 
 
 #============
@@ -55,7 +69,7 @@ conditionalPanel(condition="input.policiesBox2!='None'", ns=NS(id),
                  fluidRow(column(4, wellPanel(style="background-color: #ededed; border-color: #9c9c9c; padding=10;",
                                               fluidRow(column(6, uiOutput(NS(id,'indicsBox'))),
                                                        column(6, uiOutput(NS(id,'corrsBox')))),
-                                              fluidRow(column(6, align='center', uiOutput(NS(id,'indicsDesc'))), column(6, align='center', uiOutput('corrsDesc'))),
+                                              fluidRow(column(6, align='center', uiOutput(NS(id,'yDesc'))), column(6, align='center', uiOutput(NS(id,'xDesc')))),
                                               hr(),
                                               fluidRow(checkboxInput(NS(id,'yChk'), 'Omit 0s from Y Variable')),
                                               fluidRow(radioButtons(NS(id, 'adm_levels'), "Choose Administrative Unit", choiceNames = adm_levels$admLabel, choiceValues=adm_levels$admLevel)),
@@ -97,10 +111,12 @@ HTML('</div>')
   }
 }
 
+
+
 #============
 #Server
 #============
-comparisonsServer <- function(id, globals, territory_names) {
+comparisonsServer <- function(id, globals, groups_list, territory_names) {
   moduleServer(id, function(input, output, session) {
 
     list2env(globals, environment()) #Unpack the list back into the original data frames/vectors.
@@ -110,7 +126,7 @@ comparisonsServer <- function(id, globals, territory_names) {
     #Fix names when someone clicks the button
     xname <- reactive({input$xvarSelect}) |> bindEvent(input$submitBtn)
     yname <- reactive({input$yvarSelect}) |> bindEvent(input$submitBtn)
-    admMergeVar <- reactive({input$adm_levels }) |> bindEvent(input$submitBtn)
+    admMergeVar <- reactive({input$adm_levels }) #|> bindEvent(input$submitBtn) #Messes with the download buttons.
     
     output$yearRadio <- renderUI({
       if(!is.null(year_list)) {
@@ -129,9 +145,9 @@ comparisonsServer <- function(id, globals, territory_names) {
   
     #This also needs to be fixed - some of this stuff should be turfed to the loading files.
   output$groupsBtn <- renderUI({
-    req(input$yearBtn, groups_list, input$policiesBox2)
+    req(input$yearBtn, groups_list, input$policiesBox2) 
     groups_sub <- groups_list |> filter(level=="All" | level==input$policiesBox2) # fix names 
-    yeargroups <- tryCatch(read.csv(sprintf("Data/groups_%s.csv", input$yearBtn), nrows=1), 
+    yeargroups <- tryCatch(read.csv(sprintf("Data/groups_%s.csv", input$yearBtn), nrows=1) |> names(), #Just check the file for column names. 
                           error=function(e){return(NULL)})
     if(!is.null(yeargroups)){
     groups_sub = groups_sub |> filter(varName %in% yeargroups)
@@ -154,9 +170,23 @@ comparisonsServer <- function(id, globals, territory_names) {
   
   indics <- reactive({
     if(req(input$policiesBox2)!="None"){
-      getIndics(pathway_link, indicator_list, indic_inventory, input$policiesBox2, input$pathwaysIn2, input$yearBtn)
+      use_cats <- F
+      if(with(indicator_list, exists("category"))) {
+          use_cats <- length(indicator_list$category)==nrow(indicator_list)
+      }
+      getIndics(pathway_link, indicator_list, indic_inventory, input$policiesBox2, input$pathwaysIn2, input$yearBtn, use_cats)
     }
   })
+  
+    output$yDesc <- renderUI({
+      req(input$yvarSelect)
+      varcaptions(input$yvarSelect, indicator_list)
+    })
+    
+    output$xDesc <- renderUI({
+      req(input$xvarSelect)
+      varcaptions(input$xvarSelect, indicator_list) #if the indicator_list isn't explicitly in the call, it doesn't work. 
+    })
   
   
   #This might be generalizable to reduce code elsewhere.
@@ -199,7 +229,7 @@ comparisonsServer <- function(id, globals, territory_names) {
             showNotification(paste("Variable(s)", paste(indics_missing, collapse=", "), "not found in the dataset"), type="warning")
           }
           varnames <- data.frame(shortName=names(data_out))
-          varnames <- merge(varnames, indicator_list |> select(shortName, labelName), by="shortName")
+          varnames <- merge(varnames, indicator_list |> select(shortName, label), by="shortName")
           missing_vars <- NULL
           for(currVar in names(data_out)){
             if(all(is.na(data_out[[currVar]])) | all(na.omit(data_out[[currVar]]==0))){
@@ -218,7 +248,7 @@ comparisonsServer <- function(id, globals, territory_names) {
             data_out <- data_out |> select(!matches(missing_vars))
             showNotification(paste("Variable(s)", paste(missing_vars, collapse = ", "), "were non-numeric and were removed from the dataset"), type="warning")
           }
-          output$heatMap <- renderPlotly(corMat(varnames$shortName, varnames$labelName, data_out))
+          output$heatMap <- renderPlotly(corMat(varnames$shortName, varnames$label, data_out))
         }
     }
   })
@@ -244,10 +274,11 @@ comparisonsServer <- function(id, globals, territory_names) {
   aggs_list <- reactive({input$groupsChk}) #ALT Note: Right now this is an unnecessary step, but if we ever end up needing to have multiple disaggregation criteria, it's probably better to do it this way.
 
   all_data <- reactive({
-    req(input$xvarSelect, input$yvarSelect)
-    outdata <- getData(indic_inventory, xvars=input$xvarSelect, yvars=input$yvarSelect, indicator_list, aggs_list=aggs_list(), adm_levels=adm_levels, source_call="explorer", drop_0s = input$yChk)
+    req(input$xvarSelect, input$yvarSelect, aggs_list())
+    outdata <- getData(indic_inventory, xvars=input$xvarSelect, yvars=input$yvarSelect, indicator_list, aggs_list=aggs_list(), adm_levels=adm_levels, drop_0s = input$yChk)
     outdata <- outdata[[admMergeVar()]] |> filter(year %in% input$yearBtn) |> select(-year) #To fix.
     #Move to get data
+    
     if(nzchar(aggs_list())) {
     if(with(outdata, exists(aggs_list()))) { 
       if(!is.factor(outdata[[aggs_list()]])) {
@@ -267,14 +298,14 @@ comparisonsServer <- function(id, globals, territory_names) {
   
   labs <- reactive({
     list(
-    xlab=indicator_list$labelName[indicator_list$shortName==input$xvarSelect],
-    ylab=indicator_list$labelName[indicator_list$shortName==input$yvarSelect],
+    xlab=indicator_list$label[indicator_list$shortName==input$xvarSelect],
+    ylab=indicator_list$label[indicator_list$shortName==input$yvarSelect],
     aggs_lab=if(aggs_list()!="") groups_list$shortName[groups_list$label==aggs_list()] else NULL,
     xAxis = indicator_list$axisName[indicator_list$shortName==input$xvarSelect],
     yAxis = indicator_list$axisName[indicator_list$shortName==input$yvarSelect],
-    xTitle = sprintf("Map of %s by %s", indicator_list$labelName[indicator_list$shortName ==input$xvarSelect], str_to_title(admMergeVar())),
+    xTitle = sprintf("Map of %s by %s", indicator_list$label[indicator_list$shortName ==input$xvarSelect], str_to_title(admMergeVar())),
     xUnits = indicator_list$units[indicator_list$shortName==input$xvarSelect],
-    yTitle = sprintf("Map of %s by %s", indicator_list$labelName[indicator_list$shortName == input$yvarSelect], str_to_title(admMergeVar())),
+    yTitle = sprintf("Map of %s by %s", indicator_list$label[indicator_list$shortName == input$yvarSelect], str_to_title(admMergeVar())),
     yUnits = indicator_list$units[indicator_list$shortName==input$yvarSelect]
     )
   }) |> bindEvent(input$submitBtn)
@@ -394,7 +425,7 @@ comparisonsServer <- function(id, globals, territory_names) {
         aggs_list <- NULL
       }
       #The indicator_list part of this call is not strictly necessary but I'm keeping it in for clarity (for now)
-      rawData <- getData(indic_inventory, xvars=input$xvarSelect, yvars=input$yvarSelect, indicator_list=indicator_list, aggs_list=aggs_list(), adm_levels=adm_levels[adm_levels$admLevel==admMergeVar(),], drop_0s = input$yChk)
+      rawData <- getData(indic_inventory, xvars=input$xvarSelect, yvars=input$yvarSelect, indicator_list=indicator_list, aggs_list=aggs_list(), adm_levels=adm_levels, drop_0s = input$yChk)
       write.csv(rawData[[admMergeVar()]], file, row.names=F)
     }
   )
@@ -406,7 +437,7 @@ comparisonsServer <- function(id, globals, territory_names) {
       if(aggs_list==""){
         aggs_list <- NULL
       }
-      rawData <- getData(indic_inventory, xvars=indics(), indicator_list=indicator_list, aggs_list=aggs_list(), adm_levels=adm_levels[adm_levels$admLevel==admMergeVar(),], drop_0s = input$yChk) #Drop 0s won't do anything because we treat it all as xvars
+      rawData <- getData(indic_inventory, xvars=indics(), indicator_list=indicator_list, aggs_list=aggs_list(), adm_levels=adm_levels, drop_0s = input$yChk) #Drop 0s won't do anything because we treat it all as xvars #This is pretty inefficient and needs to be fixed but we need to figure out a static id variable first.
       write.csv(rawData[[admMergeVar()]], file, row.names=F)
     }
   )

@@ -37,7 +37,7 @@ getRawData <- function(files, indicators, aggs_list="year", adm_levels) {
     #to do: add admin level aggregation here. 
     filenames <- files$file[files$year==year] |> unique()
     for(filename in filenames) {
-      infile <-  tryCatch(read.csv(sprintf("Data/%s_%s.csv", filename, year)) |> select(any_of(na.omit(c(adm_levels$shortName, indicators$shortName, indicators$denominator, indicators$numerator, indicators$weight)))), #Idk if this is the best way to do this.
+      infile <-  tryCatch(read.csv(sprintf("Data/%s_%s.csv", filename, year)) |> select(any_of(na.omit(c(adm_levels$shortName, adm_levels$admLevel, indicators$shortName, indicators$denominator, indicators$numerator, indicators$weight)))), #Idk if this is the best way to do this.
                           error=function(e){
                             merge_errors <- merge_errors |> add_row(file=filename, error="Unable to load file or variables were missing")
                           })
@@ -192,8 +192,8 @@ getData <- function(files, xvars, yvars=NULL, indicator_list=indicator_list,  ag
         if(nrow(df)>0){  
           #Doing this down here to avoid messing up household data export, although hhdata might or might not have denoms at this point. 
           for(currVar in varslist_short){
-            denom <- indicators$denominator[indicators$shortName==currVar]
-            wt <- indicators$weight[indicators$shortName==currVar]
+            denom <- indicator_list$denominator[indicator_list$shortName==currVar]
+            wt <- indicator_list$weight[indicator_list$shortName==currVar]
             df[[paste0("weight.", currVar)]] <- if(any(names(df) %in% denom)) {
               df$weight*df[[denom]] 
             } else if(any(names(df) %in% wt)) {
@@ -219,7 +219,7 @@ getData <- function(files, xvars, yvars=NULL, indicator_list=indicator_list,  ag
             if(with(df, exists(adm_level))) {
               unitid <- adm_levels$admLevel[i]
               maxLevel <- adm_levels$level[i]
-            }
+            } #else?
           }
           #End kludge
           adm_levels <- adm_levels |> filter(level <= maxLevel)

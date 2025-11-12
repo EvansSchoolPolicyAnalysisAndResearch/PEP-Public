@@ -1,6 +1,8 @@
 contextUI <- function(id) {
-  if(file.exists("www/context.html")) {
-    tags$iframe(src = "context.html", width="100%", style="height:70vh; border:none;")
+  if(file.exists("www/context.rmd")) {
+    tags$iframe(src = "context.html", width="100%", style="height:80vh; border:none;",
+                tags$head(target="_blank"))
+    
     } else {
     tags$p(style="color: red;", 'Please create "context.html" in the "www" subfolder to add content to this tab.')
   }

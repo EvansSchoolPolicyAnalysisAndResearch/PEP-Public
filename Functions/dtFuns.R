@@ -28,7 +28,7 @@ filterVarTable <- function(dt_out, pathway_link, pathwayTarget, indicator_list, 
   } 
   dt_out <- dt_out |> 
     left_join(indicator_list) |>
-    select(shortName, labelName, year, units, matches(stat))
+    select(c(shortName, label, year, units, all_of(stat)))
   if(stat=="Total"){
     dt_out <- dt_out |> filter(units!="ratio") #Exclude ratios from totals because they're already counted in a different indicator.
   }

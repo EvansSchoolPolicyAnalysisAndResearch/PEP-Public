@@ -86,7 +86,7 @@ diagnosticsServer <- function(id, dataset_list=NULL, indic_inventory=NULL, instr
       dup_files <- length(data_files) > 1
       data_years <- indic_inventory |> filter(shortName==y) |> select(year) |> distinct() |> as.data.frame()
       res <- data.frame(shortName=y, 
-                        Variable= if(indicatorPres) rowpop$labelName else "NA",
+                        Variable= if(indicatorPres) rowpop$label else "NA",
                         `Years Available` = if(datasetPres) paste(data_years[,1], collapse=", ") else "NA", 
                         `In Dataset`= if(datasetPres) as.character(icon("check")) else as.character(icon("xmark")),
                         `In Indicators List`=if(indicatorPres) as.character(icon("check")) else as.character(icon("xmark")),

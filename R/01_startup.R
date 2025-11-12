@@ -233,24 +233,23 @@ if(!is.list(policy_path)){
   names(polic_activ) <- short_Pathways
 }
 
-
-if(is.list(ref_sources)){
+#Not currently necessary, to fix
+#if(is.list(ref_sources)){
   #names(ref_sources) <- c("Policy Goal", "Citation", "Link") # ALT temp kludge till I can make this more robust
-  
-}
+#}
 
-
-if(is.list(ext_sources)){
-  colnm_ext <- c("Source","Relevant.Variables", "Location")
-  if(any(!(colnm_ext %in% names(ext_sources)))){
-    ext_sources <- NULL
-  } else {
-    if(!interactive()){
-      ext_sources$Location <- sapply(ext_sources$Location, FUN=function(x){as.character(tags$a(x, href=x))})
-    }
-    names(ext_sources) <- str_replace_all(names(ext_sources), "\\.", " ")
-  }
-}
+#Not currently necessary, to fix.
+#if(is.list(ext_sources)){
+#  colnm_ext <- c("Source","Relevant.Variables", "Location")
+#  if(any(!(colnm_ext %in% names(ext_sources)))){
+#    ext_sources <- NULL
+#  } else {
+#    if(!interactive()){
+#     ext_sources$Location <- sapply(ext_sources$Location, FUN=function(x){as.character(tags$a(x, href=x))})
+#    }
+#    names(ext_sources) <- str_replace_all(names(ext_sources), "\\.", " ")
+#  }
+#}
 
 #Might not be necessary?
 #Todo: Error handling
