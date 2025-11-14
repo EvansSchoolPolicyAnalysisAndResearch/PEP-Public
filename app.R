@@ -49,7 +49,7 @@ ui <- navbarPage(title="Policy Explorer Platform (PEP)", theme=bslib::bs_theme(v
                  tabPanel("Gather Evidence & Assess Data", icon=icon("magnifying-glass-chart"),
                           tabsetPanel(
                             tabPanel("Data",
-                          evidenceUI("evidence", goalNames, adm_levels, indicator_list), #IDs can be arbitrary so long as the servers use the same ones.
+                          evidenceUI("evidence", goalNames, adm_levels, indicator_list,  year_list), #IDs can be arbitrary so long as the servers use the same ones.
                             ),
                           tabPanel("Literature Evidence",
                                    litUI("evidence_tab"))
@@ -82,7 +82,7 @@ server <- function(input, output, session) {
   evidenceServer("evidence", globals, shps)
   policymatServ("policymat", pathwaysDT)
   stakeholderServer("stakeholdertab")
-  comparisonsServer("comps", globals, territory_names)
+  comparisonsServer("comps", globals, groups_list, territory_names)
   litServer("evidence_tab", ref_sources)
   diagnosticsServer("diagnostics", dataset_list=NULL, indic_inventory, instrument_list=NULL, indicator_list, pathway_link, policy_path) #Null vars are no longer in use and should be pulled
   secsourcesServer("secsources", ext_sources) #Need to do name change on the back end. 

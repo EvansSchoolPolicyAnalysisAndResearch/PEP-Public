@@ -1,0 +1,1 @@
+Add stakeholder maps as images to this folder

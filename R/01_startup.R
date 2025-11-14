@@ -202,7 +202,7 @@ if(!is.list(policy_path)){
     inst_names <- unique(policy_path_sub[,5])
     
     temp_list <- lapply(inst_names, FUN=function(y){
-      tempnames <- policy_path_sub[,5][policy_path_sub[,5]==y]
+      tempnames <- policy_path_sub[,6][policy_path_sub[,5]==y]
       tempvals <- as.list(policy_path_sub$pathwayID[policy_path_sub[,5]==y])
       
       names(tempvals) <- tempnames

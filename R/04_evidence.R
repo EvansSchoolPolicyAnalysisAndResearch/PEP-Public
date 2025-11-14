@@ -13,8 +13,8 @@ evidenceUI <- function(id, goalNames, adm_levels, indicators, year_list){  #Most
     
   tagList(
       tabPanel("Data",
-      fluidRow(column(2, selectInput(NS(id, 'policiesBox'), "Select a policy goal", choices=c("None", goalNames))),
-               column(2, uiOutput(NS(id, 'pathwaysBox')))),
+      fluidRow(column(4, selectInput(NS(id, 'policiesBox'), "Select a policy goal", choices=c("None", goalNames))),
+               column(4, uiOutput(NS(id, 'pathwaysBox')))),
       
       conditionalPanel("input.policiesBox!='None'", ns=NS(id),
       tabsetPanel(

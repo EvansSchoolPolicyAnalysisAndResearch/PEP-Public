@@ -145,7 +145,8 @@ comparisonsServer <- function(id, globals, groups_list, territory_names) {
   
     #This also needs to be fixed - some of this stuff should be turfed to the loading files.
   output$groupsBtn <- renderUI({
-    req(input$yearBtn, groups_list, input$policiesBox2) 
+    req(input$yearBtn, input$policiesBox2) 
+    if(!is.null(groups_list)){
     groups_sub <- groups_list |> filter(level=="All" | level==input$policiesBox2) # fix names 
     yeargroups <- tryCatch(read.csv(sprintf("Data/groups_%s.csv", input$yearBtn), nrows=1) |> names(), #Just check the file for column names. 
                           error=function(e){return(NULL)})
@@ -158,7 +159,8 @@ comparisonsServer <- function(id, globals, groups_list, territory_names) {
     } 
     } else {
       renderUI(radioButtons(NS(id, "groupsChk"), HTML("<b>Selecting Grouping Variable</b>"), choiceNames="None Available", choiceValues=""))
-  }
+    }
+    }
     #radioButtons(NS(id,"groupsChk"), HTML("<b>Selecting Grouping Variable</b>"), choiceNames=c("None", groups_list$label), choiceValues=c("", groups_list$varName))
   }) |> bindCache(input$yearBtn, input$policiesBox2)
   
